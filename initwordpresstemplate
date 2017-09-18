@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+
+SITENAME=$1
+TEMPLATE=$2
+DIRECTORY=$3
+
+cd ${DIRECTORY}
+
+if [ $TEMPLATE == 'sage' ]; then
+   composer create-project roots/sage ${SITENAME}_theme 8.5.3
+fi
+
+if [ $TEMPLATE == 'jointswp' ]; then
+   git clone https://github.com/JeremyEnglert/JointsWP.git ${SITENAME}_theme
+fi
+

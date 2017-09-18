@@ -1,0 +1,48 @@
+#!/usr/bin/env sh
+
+SITENAME=$1
+TEMPLATE=$2
+DIRECTORY=/vagrant/www/${SITENAME}/wp-content/themes/;
+
+PASSWDDB="$(openssl rand -base64 12)"
+
+cd /home/vagrant 
+echo -e "${GREEN}---------- Fetching Latest Wordpress Core"
+curl -O https://wordpress.org/latest.tar.gz
+echo ""
+
+echo -e "${GREEN}---------- Extracting Wordpress"
+tar zxf latest.tar.gz
+mv wordpress/* /vagrant/www/${SITENAME}
+rm -rf latest.tar.gz
+echo "${GREEN} Extracing DONE."
+
+echo -e "${GREEN}---------- Creating Database"
+mysql -uroot -pmysql -e "CREATE DATABASE ${SITENAME//./_};"
+mysql -uroot -pmysql -e "CREATE USER ${SITENAME//./_}@localhost IDENTIFIED BY '${PASSWDDB}';"
+mysql -uroot -pmysql -e "GRANT ALL PRIVILEGES ON ${SITENAME//./_}.* TO '${SITENAME//./_}'@'localhost';"
+mysql -uroot -pmysql -e "FLUSH PRIVILEGES;"
+echo "${GREEN} Database Created."
+
+echo -e "${GREEN}---------- Adding DB credentials to wp-config.php"
+cp /vagrant/www/${SITENAME}/wp-config-sample.php /vagrant/www/${SITENAME}/wp-config.php
+sed -i "/DB_HOST/s/'[^']*'/'localhost'/2" /vagrant/www/${SITENAME}/wp-config.php
+sed -i "/DB_NAME/s/'[^']*'/'${SITENAME//./_}'/2" /vagrant/www/${SITENAME}/wp-config.php
+sed -i "/DB_USER/s/'[^']*'/'${SITENAME//./_}'/2" /vagrant/www/${SITENAME}/wp-config.php
+sed -i "/DB_PASSWORD/s/'[^']*'/'${PASSWDDB}'/2" /vagrant/www/${SITENAME}/wp-config.php
+
+SALTS=$(curl -s https://api.wordpress.org/secret-key/1.1/salt/)
+while read -r SALT; do
+SEARCH="define('$(echo "$SALT" | cut -d "'" -f 2)"
+REPLACE=$(echo "$SALT" | cut -d "'" -f 4)
+echo "Setting up ... $SEARCH ..."
+sed -i "/^$SEARCH/s/put your unique phrase here/$(echo $REPLACE | sed -e 's/\\/\\\\/g' -e 's/\//\\\//g' -e 's/&/\\\&/g')/" /vagrant/www/${SITENAME}/wp-config.php
+done <<< "$SALTS"
+
+echo "${GREEN} wp-config.php setup DONE."
+
+if [ $TEMPLATE ]; then
+    echo -e "${GREEN}---------- Adding Template ${TEMPLATE}"
+    initwordpresstemplate ${SITENAME} ${TEMPLATE} ${DIRECTORY}
+fi
+

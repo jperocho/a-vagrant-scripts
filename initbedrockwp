@@ -1,0 +1,43 @@
+#!/usr/bin/env sh
+
+SITENAME=$1
+TEMPLATE=$2
+DIRECTORY=/vagrant/www/${SITENAME}/web/app/themes/;
+
+PASSWDDB="$(openssl rand -base64 12)"
+
+cd /vagrant/www
+echo -e "${GREEN}---------- Fetching Bedrock"
+git clone https://github.com/roots/bedrock.git $SITENAME
+echo ""
+
+echo -e "${GREEN}---------- Creating Database"
+mysql -uroot -pmysql -e "CREATE DATABASE ${SITENAME//./_};"
+mysql -uroot -pmysql -e "CREATE USER ${SITENAME//./_}@localhost IDENTIFIED BY '${PASSWDDB}';"
+mysql -uroot -pmysql -e "GRANT ALL PRIVILEGES ON ${SITENAME//./_}.* TO '${SITENAME//./_}'@'localhost';"
+mysql -uroot -pmysql -e "FLUSH PRIVILEGES;"
+echo ""
+
+echo -e "${GREEN}---------- Applying Custom composer.json"
+rm /vagrant/www/${SITENAME}/composer.json
+cp /vagrant/bedrock_default/composer.json /vagrant/www/${SITENAME}/composer.json
+echo ""
+
+echo -e "${GREEN}---------- Generating .env File"
+cd /vagrant/www/${SITENAME}
+wp dotenv init --template=.env.example --with-salts
+wp dotenv set DB_NAME ${SITENAME//./_}
+wp dotenv set DB_USER ${SITENAME//./_}
+wp dotenv set DB_PASSWORD ${PASSWDDB}
+wp dotenv set WP_HOME http://${SITENAME}.dev.box
+echo ""
+
+echo -e "${GREEN}---------- Installing Bedrock"
+composer install
+echo ""
+
+if [ $TEMPLATE ]; then
+    echo -e "${GREEN}---------- Adding Template ${TEMPLATE}"
+    initwordpresstemplate ${SITENAME} ${TEMPLATE} ${DIRECTORY}
+fi
+

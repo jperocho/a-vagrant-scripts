@@ -1,0 +1,45 @@
+#!/usr/bin/env sh
+
+SITENAME=$1
+
+cat > /etc/nginx/conf.d/${SITENAME}.dev.box.conf <<EOF
+server {
+    listen       80;
+    listen       [::]:80;
+    server_name  ${SITENAME}.dev.box;
+    root         /vagrant/www/${SITENAME}/web;
+    index index.php index.html index.htm;
+
+    location / {
+        try_files \$uri \$uri/ /index.php?\$args;
+    }
+
+    error_page 404 /404.html;
+        location = /40x.html {
+    }
+
+    error_page 500 502 503 504 /50x.html;
+        location = /50x.html {
+    }
+
+    location ~ \.php$ {
+        try_files \$uri =404;
+        fastcgi_pass unix:/var/run/php-fpm/php-fpm.sock;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    location ~* ^.+\.(js|css)$ {
+       expires -1;
+       sendfile off;
+    }
+
+}
+EOF
+
+echo "127.0.0.1 ${SITENAME}.dev.box" >> /etc/hosts
+systemctl restart nginx
+systemctl restart php-fpm
+
+
